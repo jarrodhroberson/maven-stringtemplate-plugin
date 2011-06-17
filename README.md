@@ -23,6 +23,10 @@ Given this, you would add something like this in your Maven pom.xml:
       </configuration>
     </plugin>
 
+# Current status
+
+''IMPORTANT''! Plug-in is work in progress, and DOES NOT YET WORK. :)
+
 # Configuration
 
 Following properties can be configured (note that these are properties
