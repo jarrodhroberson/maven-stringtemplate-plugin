@@ -33,8 +33,18 @@ Following properties can be configured (note that these are properties
 to add in pom.xml, within <configuration> -- equivalent system properties
 use "stringtemplate." prefix)
 
+## Input settings
+
 * inputDir (no default): Defines input directory (relative to project base directory) -- all files (with suitable suffix) will be processed, recursively
-* outputDir (defaults to '${project.build.directory}'): Directory under which processed template output is stored; retains input structure for sub-directories
 * inputSuffix (defaults to ".st"): Suffix of input files to process; only files that end with the suffix are processed
+* encoding (defaults to "UTF-8"): Character encoding of input files; also used for (re)encoding results
+
+## Output settings
+
+* outputDir (defaults to '${project.build.directory}'): Directory under which processed template output is stored; retains input structure for sub-directories
 * outputSuffix (defaults to ""): Suffix to use for output files, instead of input suffix (i.e. inputSuffix is replaced with outputSuffix)
+
+## Template settings
+
+* attributes (no defaults): Map of key/value pairs; attributes that Stringtemplate can use. Added under 'attributes' element in configuration so that key is element name, and value is textual element value
 

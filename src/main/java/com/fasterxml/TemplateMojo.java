@@ -12,6 +12,7 @@ import java.util.*;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
+import org.stringtemplate.v4.ST;
 
 /**
  * Beef of the plug-in; place where magic happens
@@ -54,8 +55,108 @@ public class TemplateMojo
      * @parameter expression="${stringtemplate.outputSuffix}"  default-value=""
      */
     private String outputSuffix;
+
+    /**
+     * Encoding that input files use (and which will also be used for
+     * encoding output); default value is "UTF-8"
+     * 
+     * @parameter expression="${stringtemplate.encoding}" default-value="UTF-8"
+     */
+    private String encoding;
     
-    private void findFiles(Map<File,File> result, File inputDir, String inputSuffix,
+    /**
+     * Starting delimiter character for Stringtemplate expressions;
+     * defaults to '$'.
+     * NOTE: Stringtemplate limits delimiters to a single character, so you can NOT
+     * use multi-character delimiters.
+     * 
+     * @parameter expression="${stringtemplate.startDelimiter}"  default-value='$'
+     */
+    private char startDelimiter;
+
+    /**
+     * Ending (closing) delimiter character for Stringtemplate expressions;
+     * defaults to '$'.
+     * NOTE: Stringtemplate limits delimiters to a single character, so you can NOT
+     * use multi-character delimiters.
+     * 
+     * @parameter expression="${stringtemplate.endDelimiter}"  default-value="$"
+     */
+    private char endDelimiter;
+
+    /**
+     * We can also define attributes for ST to use. These are defined as
+     * a Map in pom.xml
+     * 
+     * @parameter 
+     */
+    private Map<String,String> attributes;
+    
+    /*
+    ///////////////////////////////////////////////////////////////////////
+    // Actual processing method(s)
+    ///////////////////////////////////////////////////////////////////////
+     */
+    
+    /**
+     * Main operation
+     */
+    public void execute()
+        throws MojoExecutionException
+    {
+        // first, find input directory and files it contains
+        if (!inputDir.exists()) {
+            throw new MojoExecutionException("Input directory '"+inputDir.getAbsolutePath()+"' does not exist");
+        }
+        Map<File,File> files = new LinkedHashMap<File,File>();
+        // looks like maven may change empty String to null?
+        String outputSuffix = this.outputSuffix;
+        findFiles(files, inputDir, trim(inputSuffix), outputDir, trim(outputSuffix));
+        
+        if (!outputDir.exists()) {
+            outputDir.mkdirs();
+        }
+        getLog().info(String.format("Found %s template files to process: %s", files.size(), files.toString()));
+        for (Map.Entry<File,File> fileEntry : files.entrySet()) {
+            File inputFile = fileEntry.getKey();
+            File outputFile = fileEntry.getValue();
+            try {
+                // let's do sanity check... ok to use same dir, but not same dir and same suffix (i.e. can't overwrite input)
+                if (inputFile.getCanonicalPath().equals(outputFile.getCanonicalPath())) {
+                    new MojoExecutionException("Problem: trying to replace input file '"+inputFile.getCanonicalPath()+"' with output; not allowed");                
+                }
+            } catch (IOException e) {
+                throw new MojoExecutionException("I/O problem: "+e.getMessage(), e);
+            }
+            String input = readFile(inputFile, encoding);
+            ST stringTemplate = new ST(input, startDelimiter, endDelimiter);
+            if (attributes != null) {
+                for (Map.Entry<String,String> attrEntry : attributes.entrySet()) {
+                    stringTemplate.add(attrEntry.getKey(), attrEntry.getValue());
+                }
+            }
+            getLog().info("Read template '"+inputFile.getAbsolutePath()+"'; will process");
+            String output = stringTemplate.render();
+            writeFile(outputFile, encoding, output);
+            getLog().info("Wrote output file '"+outputFile.getAbsolutePath()+"'");
+        }
+    }
+
+    /*
+    ///////////////////////////////////////////////////////////////////////
+    // Helpers
+    ///////////////////////////////////////////////////////////////////////
+     */
+
+    private static String trim(String str)
+    {
+        if (str == null) {
+            return "";
+        }
+        return str.trim();
+    }
+    
+    private static void findFiles(Map<File,File> result, File inputDir, String inputSuffix,
             File outputDir, String outputSuffix)
     {
         for (File f : inputDir.listFiles()) {
@@ -69,20 +170,34 @@ public class TemplateMojo
         }
     }
     
-    public void execute()
+    private final static String readFile(File inputFile, String encoding) throws MojoExecutionException
+    {
+        StringBuilder sb = new StringBuilder((int) inputFile.length());
+        char[] buf = new char[1000];
+        int count;
+
+        try {
+            InputStreamReader in = new InputStreamReader(new FileInputStream(inputFile), encoding);
+            while ((count = in.read(buf)) >= 0) {
+                sb.append(buf, 0, count);
+            }
+            in.close();
+            return sb.toString();
+        } catch (IOException e) {
+            throw new MojoExecutionException("Failed to read input file '"+inputFile.getAbsolutePath()+"': "+e.getMessage(), e);
+        }    
+    }
+    
+    private final static void writeFile(File ouputtFile, String encoding, String contents)
         throws MojoExecutionException
     {
-        // first, find input directory and files it contains
-        if (!inputDir.exists()) {
-            throw new MojoExecutionException( "Input directory '"+inputDir.getAbsolutePath()+"' does not exist");
-        }
-        String suffix = inputSuffix.trim();
-        Map<File,File> files = new LinkedHashMap<File,File>();
-        findFiles(files, inputDir, suffix, outputDir, outputSuffix.trim());
-
-        if (!outputDir.exists()) {
-            outputDir.mkdirs();
-        }
-        getLog().info(String.format("Found %s template files: %s", files.size(), files.toString()));
+        try {
+            OutputStreamWriter w = new OutputStreamWriter(new FileOutputStream(ouputtFile), encoding);
+            w.write(contents);
+            w.close();
+        } catch (IOException e) {
+            throw new MojoExecutionException("Failed to write output file '"+ouputtFile.getAbsolutePath()+"': "+e.getMessage(), e);
+        }    
     }
+
 }
