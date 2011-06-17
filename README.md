@@ -38,6 +38,7 @@ use "stringtemplate." prefix)
 * inputDir (no default): Defines input directory (relative to project base directory) -- all files (with suitable suffix) will be processed, recursively
 * inputSuffix (defaults to ".st"): Suffix of input files to process; only files that end with the suffix are processed
 * encoding (defaults to "UTF-8"): Character encoding of input files; also used for (re)encoding results
+* templateDir (defaults to value set for 'inputDir'): Defines directory (relative to project base) that contains templates included by input files (if any). Note that Stringtemplate requires suffix of '.st' for included templates.
 
 ## Output settings
 

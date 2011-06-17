@@ -7,12 +7,15 @@ package com.fasterxml;
  */
 
 import java.io.*;
+import java.net.URL;
 import java.util.*;
 
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.stringtemplate.v4.ST;
+import org.stringtemplate.v4.STGroupDir;
+import org.stringtemplate.v4.compiler.STException;
 
 /**
  * Beef of the plug-in; place where magic happens
@@ -33,6 +36,15 @@ public class TemplateMojo
      */
     private File inputDir;
 
+    /**
+     * Template root directory; used for resolving template references
+     * from the main input.
+     * Defaults to same as <code>inputDir</code>
+     * 
+     * @parameter
+     */
+    private File templateDir;
+    
     /**
      * File suffix of input files to process, such as ".st"
      * 
@@ -57,8 +69,9 @@ public class TemplateMojo
     private String outputSuffix;
 
     /**
-     * Encoding that input files use (and which will also be used for
-     * encoding output); default value is "UTF-8"
+     * Encoding that input files (including template files) use,
+     * and which will also be used for encoding output);
+     * default value is "UTF-8".
      * 
      * @parameter expression="${stringtemplate.encoding}" default-value="UTF-8"
      */
@@ -108,6 +121,12 @@ public class TemplateMojo
         if (!inputDir.exists()) {
             throw new MojoExecutionException("Input directory '"+inputDir.getAbsolutePath()+"' does not exist");
         }
+        File templates = templateDir;
+        if (templates == null) {
+            getLog().info("No sepate 'templateDir' specified; will use 'inputDir' as template source'");
+            templates = inputDir;
+        }
+        
         Map<File,File> files = new LinkedHashMap<File,File>();
         // looks like maven may change empty String to null?
         String outputSuffix = this.outputSuffix;
@@ -117,19 +136,35 @@ public class TemplateMojo
             outputDir.mkdirs();
         }
         getLog().info(String.format("Found %s template files to process: %s", files.size(), files.toString()));
+        URL url;
+        try {
+            url = templates.toURI().toURL();
+        } catch (Exception e) {
+            throw new MojoExecutionException("Failed to convert template input directory '"+templates.getAbsolutePath()+"'");
+        }
+        
+        STGroupDir templateDir = new STGroupDir(url, encoding, startDelimiter, endDelimiter);
+        
         for (Map.Entry<File,File> fileEntry : files.entrySet()) {
             File inputFile = fileEntry.getKey();
             File outputFile = fileEntry.getValue();
             try {
                 // let's do sanity check... ok to use same dir, but not same dir and same suffix (i.e. can't overwrite input)
                 if (inputFile.getCanonicalPath().equals(outputFile.getCanonicalPath())) {
-                    new MojoExecutionException("Problem: trying to replace input file '"+inputFile.getCanonicalPath()+"' with output; not allowed");                
+                    throw new MojoExecutionException("Problem: trying to replace input file '"+inputFile.getCanonicalPath()+"' with output; not allowed");                
                 }
             } catch (IOException e) {
                 throw new MojoExecutionException("I/O problem: "+e.getMessage(), e);
             }
             String input = readFile(inputFile, encoding);
-            ST stringTemplate = new ST(input, startDelimiter, endDelimiter);
+            ST stringTemplate;
+            
+            try {
+                stringTemplate = new ST(templateDir, input);
+            } catch (STException e) {
+                throw new MojoExecutionException("Problem when trying to process input template '"
+                        +inputFile.getAbsolutePath()+"': "+e.getMessage(), e);
+            }
             if (attributes != null) {
                 for (Map.Entry<String,String> attrEntry : attributes.entrySet()) {
                     stringTemplate.add(attrEntry.getKey(), attrEntry.getValue());
