@@ -15,7 +15,7 @@
   <groupId>com.fasterxml</groupId>
   <artifactId>maven-stringtemplate-plugin</artifactId>
   <packaging>maven-plugin</packaging>
-  <version>1.0.0</version>
+  <version>1.0.1-SNAPSHOT</version>
   <name>maven-stringtemplate-plugin</name>
   <url>http://fasterxml.com/</url>
   <scm>
