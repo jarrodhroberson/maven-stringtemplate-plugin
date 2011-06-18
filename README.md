@@ -25,7 +25,7 @@ Given this, you would add something like this in your Maven pom.xml:
 
 # Current status
 
-''IMPORTANT''! Plug-in is work in progress, and DOES NOT YET WORK. :)
+Plug-in works as is. If you want more features, go ahead, fork and when you are done send a pull request.
 
 # Configuration
 
